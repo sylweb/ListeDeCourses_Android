@@ -123,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             new SynchroThread(this).start();
         }
         else if(v.equals(sendMailButton)) {
+            syncButton.clearAnimation();
             String pdfName = PDFUtils.exportReportAsPDF(this, ((MyAdapter)this.myList.getAdapter()).data);
             sendPDFViaEmail(pdfName);
         }
