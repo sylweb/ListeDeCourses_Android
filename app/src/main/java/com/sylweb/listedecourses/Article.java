@@ -1,7 +1,5 @@
 package com.sylweb.listedecourses;
 
-import android.content.Intent;
-
 import org.json.JSONObject;
 
 import java.util.HashMap;

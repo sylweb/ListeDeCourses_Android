@@ -1,6 +1,5 @@
 package com.sylweb.listedecourses;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
