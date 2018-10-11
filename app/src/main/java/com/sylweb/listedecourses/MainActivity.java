@@ -1,11 +1,13 @@
 package com.sylweb.listedecourses;
 
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -19,10 +21,12 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -68,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if(this.myReceiver == null) this.myReceiver = new MessageReceiver();
         LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver, new IntentFilter("DataReady"));
         LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver, new IntentFilter("AskForUpdate"));
+        LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver, new IntentFilter("DisplayMessage"));
 
         articleName.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
@@ -118,7 +123,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             new SynchroThread(this).start();
         }
         else if(v.equals(sendMailButton)) {
-
+            String pdfName = PDFUtils.exportReportAsPDF(this, ((MyAdapter)this.myList.getAdapter()).data);
+            sendPDFViaEmail(pdfName);
         }
     }
 
@@ -168,6 +174,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 syncButton.clearAnimation();
                 new UpdateThread().start();
             }
+            else if(intent.getAction().equals("DisplayMessage")) {
+                String message = intent.getExtras().getString("message");
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -194,6 +204,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (success) {
                 lastSyncDate = Calendar.getInstance().getTimeInMillis();
                 prefs.edit().putLong(dataSyncKey, lastSyncDate);
+                Intent i = new Intent("DisplayMessage");
+                i.putExtra("message", "Synchronisation réussie.");
+                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);
+            }
+            else {
+                Intent i = new Intent("DisplayMessage");
+                i.putExtra("message", "Echec de la synchronisation.");
+                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);
             }
             Intent i = new Intent("AskForUpdate");
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);
@@ -230,13 +248,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         if(re != null && re.size() == 1) {
                             //Update entry
                             query = "UPDATE article SET name = '%s', quantity=%d, deleted=%d, modified_on = %d WHERE id LIKE '%s'";
-                            query = String.format(query, remoteEntry.id);
+                            query = String.format(query, remoteEntry.name, remoteEntry.quantity, remoteEntry.deleted, remoteEntry.modified_on, remoteEntry.id);
                             DBManager.executeQuery(query);
                         }
                         else {
                             //Insert entry
                             query = "INSERT INTO article(id,name,quantity,deleted,modified_on) VALUES('%s','%s',%d,%d,%d)";
-                            query = String.format(query, remoteEntry.id, remoteEntry.name, remoteEntry.quantity, remoteEntry.deleted, remoteEntry.modified_on);
+                            query = String.format(query, String.valueOf(remoteEntry.id), remoteEntry.name, remoteEntry.quantity, remoteEntry.deleted, remoteEntry.modified_on);
                             DBManager.executeQuery(query);
                         }
                     }
@@ -316,5 +334,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return returnValue;
         }
 
+    }
+
+    private void sendPDFViaEmail(String pdfName) {
+        try {
+            String pdfPath = this.getFilesDir().getAbsolutePath()+ File.separator+"pdf"+File.separator;
+            File pdf = new File(pdfPath + pdfName);
+            //Ask user to choose what app will be e-mail provider and send pdf as joined file
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("application/pdf");
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Liste de courses");
+            shareIntent.putExtra(Intent.EXTRA_TEXT, "Voici notre liste de courses");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID, pdf));
+            startActivityForResult(shareIntent, 1);
+        }
+        catch(ActivityNotFoundException ex) {
+            Toast.makeText(this, "No e-mail client found", Toast.LENGTH_LONG).show();
+        }
     }
 }
