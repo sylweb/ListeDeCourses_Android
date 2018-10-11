@@ -45,6 +45,8 @@ public class PDFUtils {
 
         int PAGE_HEIGHT = document.getPageHeight();
         int PAGE_WIDTH = document.getPageWidth();
+        //On réduit la largeur utilisable de la page pour faire des listes plus petites
+        PAGE_WIDTH = PAGE_WIDTH / 2 - 2 * LEFT_PAGE_PADDING;
 
         // start a page
         PdfDocument.Page page = document.startPage(1);
@@ -57,7 +59,7 @@ public class PDFUtils {
 
         Rect bounds = new Rect();
         String headerText = "Liste de courses";
-        paint.setTextSize(24.0f);
+        paint.setTextSize(16.0f);
         paint.getTextBounds(headerText, 0, headerText.length(), bounds);
         posY += bounds.height();
         page.getCanvas().drawText(headerText,PAGE_WIDTH/2.0f-bounds.width()/2.0f,posY,paint);
@@ -66,13 +68,37 @@ public class PDFUtils {
 
         posY += PADDING_HEIGHT * 8.0f;
         paint.setFakeBoldText(false);
-        paint.setTextSize(18.0f);
+        paint.setTextSize(10.0f);
 
         for(Article article : data) {
             String text = String.format("%d - %s",article.quantity,article.name);
-            page.getCanvas().drawText(text,LEFT_PAGE_PADDING,posY,paint);
             paint.getTextBounds(text, 0, text.length(), bounds);
-            posY += (bounds.height() + 2.0f * PADDING_HEIGHT);
+            if(bounds.width() + LEFT_PAGE_PADDING >  PAGE_WIDTH ) {
+                int spaceIndex = 0;
+                int lastSpaceIndex = 0;
+                String newText = String.format("%d - ",article.quantity);
+                String articleName = article.name;
+                Rect secondBounds = new Rect();
+                while(true){
+                    spaceIndex = articleName.indexOf(" ", spaceIndex+1);
+                    newText = newText + articleName.substring(lastSpaceIndex, spaceIndex);
+                    paint.getTextBounds(newText, 0, newText.length(), secondBounds);
+                    if(secondBounds.width() + LEFT_PAGE_PADDING > PAGE_WIDTH) break;
+                    lastSpaceIndex = spaceIndex;
+                }
+                String firstLine = String.format("%d - %s",article.quantity, article.name.substring(0, lastSpaceIndex));
+                String secondLine = articleName.substring(lastSpaceIndex, articleName.length());
+                page.getCanvas().drawText(firstLine,LEFT_PAGE_PADDING,posY,paint);
+                paint.getTextBounds(firstLine, 0, firstLine.length(), secondBounds);
+                posY += (secondBounds.height() + PADDING_HEIGHT);
+                page.getCanvas().drawText(secondLine,LEFT_PAGE_PADDING,posY,paint);
+                paint.getTextBounds(secondLine, 0, secondLine.length(), secondBounds);
+                posY += (secondBounds.height() + 2.0f * PADDING_HEIGHT);
+            }
+            else {
+                page.getCanvas().drawText(text,LEFT_PAGE_PADDING,posY,paint);
+                posY += (bounds.height() + 2.0f * PADDING_HEIGHT);
+            }
         }
 
         // finish the last page
