@@ -84,6 +84,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             if(!articleName.getText().toString().trim().equals("")) {
 
+                String name = articleName.getText().toString().trim();
+                name = name.replace("'","''");
+
                 String query = "INSERT INTO article(id, name, quantity, deleted, modified_on) VALUES('%s', '%s', %d, 0, %d)";
                 long modifiedOn = Calendar.getInstance().getTimeInMillis();
                 String id = "TEMP_" + modifiedOn;
@@ -91,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (!articleQuantity.getText().toString().trim().equals("")) {
                     qty = Integer.valueOf(articleQuantity.getText().toString().trim());
                 }
-                query = String.format(query, id, articleName.getText().toString(), qty, modifiedOn);
+                query = String.format(query, id, name, qty, modifiedOn);
                 DBManager.executeQuery(query);
 
                 this.articleName.setText("");
